@@ -1,0 +1,53 @@
+name: CI
+
+on: [push]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+      - name: Lint
+        run: cargo clippy --all-targets --all-features -- --deny warnings
+      - name: Telegram notification on success
+        if: success()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ✅ check finished:
+            Commit actor: ${{ github.actor }}
+            Commit message: ${{ github.event.head_commit.message }}
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            
+            See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
+            CI job: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      - name: Telegram notification on failure
+        if: failure()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ❌ check failed:
+            Commit actor: ${{ github.actor }}
+            Commit message: ${{ github.event.head_commit.message }}
+            
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            
+            See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
+            CI job: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
