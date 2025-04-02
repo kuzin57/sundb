@@ -57,7 +57,7 @@ pub struct Summator<'a> {
     slice: &'a [i32],
 }
 
-impl<'a> Runnable for Summator<'a> {
+impl Runnable for Summator<'_> {
     fn run(&mut self) {
         let mut sum = 0;
         for i in self.slice {

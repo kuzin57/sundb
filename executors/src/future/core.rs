@@ -21,6 +21,13 @@ impl<T> SharedState<T> {
         }
     }
 }
+
+impl<T> Default for SharedState<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct BlockingFuture<T> {
     state: Arc<Mutex<SharedState<T>>>,
     condvar: Arc<Condvar>,
@@ -56,7 +63,7 @@ impl<T: Copy + Clone> Future<T> for BlockingFuture<T> {
             state = self.condvar.wait(state).unwrap();
         }
 
-        state.value.clone()
+        state.value
     }
 }
 
