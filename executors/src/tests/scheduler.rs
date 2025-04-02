@@ -32,11 +32,11 @@ fn test_concurrent() {
         slice: &BIG_VECTOR[200000..],
     });
 
-    let mut start = Instant::now();
+    let start = Instant::now();
     scheduler.schedule(first_summator);
     scheduler.schedule(second_summator);
     scheduler.schedule(third_summator);
-    let mut duration = start.elapsed();
+    let duration = start.elapsed();
     println!("Time taken: {:?}", duration);
 
     scheduler.stop();
@@ -47,7 +47,7 @@ struct SimpleTask {
 }
 
 impl Runnable for SimpleTask {
-    fn run(&self) {
+    fn run(&mut self) {
         println!("SimpleTask {} is running", self.id);
     }
 }
@@ -58,7 +58,7 @@ struct Summator<'a> {
 }
 
 impl<'a> Runnable for Summator<'a> {
-    fn run(&self) {
+    fn run(&mut self) {
         let mut sum = 0;
         for i in self.slice {
             sum += i;

@@ -27,9 +27,9 @@ pub struct BlockingFuture<T> {
 }
 
 impl<T> BlockingFuture<T> {
-    pub fn new(state: SharedState<T>) -> Self {
+    pub fn new(state: Arc<Mutex<SharedState<T>>>) -> Self {
         Self {
-            state: Arc::new(Mutex::new(state)),
+            state,
             condvar: Arc::new(Condvar::new()),
         }
     }
@@ -40,9 +40,9 @@ pub struct SimplePromise<T> {
 }
 
 impl<T> SimplePromise<T> {
-    pub fn new(state: SharedState<T>) -> Self {
+    pub fn new(state: Arc<Mutex<SharedState<T>>>) -> Self {
         Self {
-            state: Arc::new(Mutex::new(state)),
+            state,
             condvar: Arc::new(Condvar::new()),
         }
     }

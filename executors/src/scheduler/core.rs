@@ -3,9 +3,24 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 pub trait Runnable {
-    fn run(&self);
+    fn run(&mut self);
 }
 
+pub struct RunnableWrapper<F>
+where
+    F: FnOnce() + Send + 'static,
+{
+    pub f: Option<F>,
+}
+
+impl<F> Runnable for RunnableWrapper<F>
+where
+    F: FnOnce() + Send + 'static,
+{
+    fn run(&mut self) {
+        (self.f.take().unwrap())();
+    }
+}
 pub trait Scheduler {
     fn schedule(&mut self, runnable: Box<dyn Runnable>);
     fn stop(&mut self);
@@ -26,9 +41,14 @@ impl EasyScheduler {
             .map(|_| {
                 let local_queue = Arc::clone(&queue);
 
-                thread::spawn(move || {
-                    while let Some(runnable) = local_queue.lock().unwrap().pop() {
+                thread::spawn(move || loop {
+                    let opt_runnable = { local_queue.lock().unwrap().pop() };
+
+                    if let Some(mut runnable) = opt_runnable {
                         runnable.run();
+                    } else {
+                        println!("Queue is empty {:?}", thread::current().id());
+                        break;
                     }
                 })
             })
