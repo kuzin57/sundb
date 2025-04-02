@@ -1,5 +1,5 @@
-mod fiber;
-mod future;
-mod scheduler;
-mod sync;
-mod tests;
+pub mod fiber;
+pub mod future;
+pub mod scheduler;
+pub mod sync;
+pub mod tests;

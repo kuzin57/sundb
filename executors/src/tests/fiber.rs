@@ -1,12 +1,12 @@
-use std::{
+pub use std::{
     thread::{self, sleep},
     time::{Duration, Instant},
 };
 
-use crate::fiber::core::{go, init, stop};
+pub use crate::fiber::core::{go, init, stop};
 
 #[test]
-fn test_just_works() {
+pub fn test_just_works() {
     init();
 
     let start = Instant::now();

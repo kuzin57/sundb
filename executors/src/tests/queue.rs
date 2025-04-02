@@ -1,4 +1,4 @@
-use crate::sync::queue::{Queue, SimpleQueue};
+pub use crate::sync::queue::{Queue, SimpleQueue};
 
 #[test]
 fn test_just_works() {

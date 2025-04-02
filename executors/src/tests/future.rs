@@ -1,9 +1,9 @@
-use std::{
+pub use std::{
     sync::{Arc, Mutex},
     thread,
 };
 
-use crate::future::core::{BlockingFuture, Future, Promise, SharedState, SimplePromise};
+pub use crate::future::core::{BlockingFuture, Future, Promise, SharedState, SimplePromise};
 
 #[test]
 fn test_just_works() {

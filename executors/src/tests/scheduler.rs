@@ -1,9 +1,9 @@
-use std::time::Instant;
+pub use std::time::Instant;
 
-use crate::scheduler::core::{EasyScheduler, Runnable, Scheduler};
+pub use crate::scheduler::core::{EasyScheduler, Runnable, Scheduler};
 
 #[test]
-fn test_just_works() {
+pub fn test_just_works() {
     let mut scheduler = EasyScheduler::new(3);
 
     scheduler.schedule(Box::new(SimpleTask { id: 1 }));
@@ -14,7 +14,7 @@ fn test_just_works() {
 }
 
 #[test]
-fn test_concurrent() {
+pub fn test_concurrent() {
     static BIG_VECTOR: [i32; 300000] = [1; 300000];
 
     let mut scheduler = EasyScheduler::new(3);
@@ -42,7 +42,7 @@ fn test_concurrent() {
     scheduler.stop();
 }
 
-struct SimpleTask {
+pub struct SimpleTask {
     id: usize,
 }
 
@@ -52,7 +52,7 @@ impl Runnable for SimpleTask {
     }
 }
 
-struct Summator<'a> {
+pub struct Summator<'a> {
     id: usize,
     slice: &'a [i32],
 }
