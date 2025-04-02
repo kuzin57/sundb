@@ -48,7 +48,7 @@ impl EasyScheduler {
                         runnable.run();
                     } else {
                         println!("Queue is empty {:?}", thread::current().id());
-                        break;
+                        break; // remove this fucking code
                     }
                 })
             })
