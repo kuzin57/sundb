@@ -11,6 +11,7 @@ pub trait Promise<T> {
 pub struct SharedState<T> {
     value: Option<T>,
     ready: bool,
+    wait_cond: Arc<Condvar>,
 }
 
 impl<T> SharedState<T> {
@@ -18,6 +19,7 @@ impl<T> SharedState<T> {
         Self {
             value: None,
             ready: false,
+            wait_cond: Arc::new(Condvar::new()),
         }
     }
 }
@@ -30,40 +32,32 @@ impl<T> Default for SharedState<T> {
 
 pub struct BlockingFuture<T> {
     state: Arc<Mutex<SharedState<T>>>,
-    condvar: Arc<Condvar>,
 }
 
 impl<T> BlockingFuture<T> {
     pub fn new(state: Arc<Mutex<SharedState<T>>>) -> Self {
-        Self {
-            state,
-            condvar: Arc::new(Condvar::new()),
-        }
+        Self { state }
     }
 }
 pub struct SimplePromise<T> {
     state: Arc<Mutex<SharedState<T>>>,
-    condvar: Arc<Condvar>,
 }
 
 impl<T> SimplePromise<T> {
     pub fn new(state: Arc<Mutex<SharedState<T>>>) -> Self {
-        Self {
-            state,
-            condvar: Arc::new(Condvar::new()),
-        }
+        Self { state }
     }
 }
 
-impl<T: Copy + Clone> Future<T> for BlockingFuture<T> {
+impl<T: Clone> Future<T> for BlockingFuture<T> {
     fn consume(&self) -> Option<T> {
         let mut state = self.state.lock().unwrap();
 
         while !state.ready {
-            state = self.condvar.wait(state).unwrap();
+            state = state.wait_cond.clone().wait(state).unwrap();
         }
 
-        state.value
+        state.value.clone()
     }
 }
 
@@ -72,6 +66,6 @@ impl<T> Promise<T> for SimplePromise<T> {
         let mut state = self.state.lock().unwrap();
         state.value = Some(value);
         state.ready = true;
-        self.condvar.notify_all();
+        state.wait_cond.notify_all();
     }
 }

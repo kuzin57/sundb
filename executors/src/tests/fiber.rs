@@ -30,4 +30,5 @@ pub fn test_just_works() {
 
     let duration = start.elapsed();
     println!("Duration: {:?}", duration);
+    assert!(duration < Duration::from_millis(1100));
 }

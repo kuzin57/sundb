@@ -30,3 +30,17 @@ fn test_concurrent() {
 
     assert_eq!(future.consume(), Some(1));
 }
+
+#[test]
+fn test_concurrent_future() {
+    let state = Arc::new(Mutex::new(SharedState::<i32>::new()));
+    let future = BlockingFuture::new(Arc::clone(&state));
+    let mut promise = SimplePromise::new(Arc::clone(&state));
+
+    let handle = thread::spawn(move || {
+        assert_eq!(future.consume(), Some(1));
+    });
+
+    promise.produce(1);
+    handle.join().unwrap();
+}
