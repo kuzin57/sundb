@@ -36,6 +36,12 @@ impl<T: Send + Sync> MPMCQueue<T> {
     }
 }
 
+impl<T: Send + Sync> Default for MPMCQueue<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Send + Sync> Sender<T> for MPMCQueue<T> {
     fn send(&self, item: T) {
         if self.closed.load(Ordering::Acquire) {

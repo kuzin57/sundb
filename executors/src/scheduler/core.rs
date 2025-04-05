@@ -76,7 +76,7 @@ impl Scheduler for EasyScheduler {
     fn stop(&mut self) {
         println!("Stopping scheduler");
         let result = self.closer.close();
-        if let Err(_) = result {
+        if result.is_err() {
             println!("Scheduler already closed");
             return;
         }
