@@ -17,7 +17,7 @@ pub fn init() {
 
 pub fn go<F>(f: F)
 where
-    F: FnOnce() + Send + 'static,
+    F: FnOnce() + Send + Sync + 'static,
 {
     SCHEDULER.with_borrow_mut(|s| {
         let scheduler = s.as_mut().unwrap();

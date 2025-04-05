@@ -1,10 +1,13 @@
-pub use std::time::Instant;
+pub use chrono::DateTime;
 
 pub use crate::scheduler::core::{EasyScheduler, Runnable, Scheduler};
 
 #[test]
 pub fn test_just_works() {
+    println!("Starting test");
     let mut scheduler = EasyScheduler::new(3);
+
+    println!("Scheduler created");
 
     scheduler.schedule(Box::new(SimpleTask { id: 1 }));
     scheduler.schedule(Box::new(SimpleTask { id: 2 }));
@@ -32,12 +35,12 @@ pub fn test_concurrent() {
         slice: &BIG_VECTOR[200000..],
     });
 
-    let start = Instant::now();
+    let start = chrono::Local::now();
     scheduler.schedule(first_summator);
     scheduler.schedule(second_summator);
     scheduler.schedule(third_summator);
-    let duration = start.elapsed();
-    println!("Time taken: {:?}", duration);
+    let duration = chrono::Local::now().signed_duration_since(start);
+    println!("Time taken: {:?} ns", duration.num_nanoseconds().unwrap());
 
     scheduler.stop();
 }

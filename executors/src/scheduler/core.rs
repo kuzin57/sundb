@@ -1,21 +1,22 @@
-use crate::sync::queue::{Queue, SimpleQueue};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
-pub trait Runnable {
+use crate::sync::queue::{Closer, MPMCQueue, Receiver, Sender};
+
+pub trait Runnable: Send + Sync {
     fn run(&mut self);
 }
 
 pub struct RunnableWrapper<F>
 where
-    F: FnOnce() + Send + 'static,
+    F: FnOnce() + Send + Sync + 'static,
 {
     pub f: Option<F>,
 }
 
 impl<F> Runnable for RunnableWrapper<F>
 where
-    F: FnOnce() + Send + 'static,
+    F: FnOnce() + Send + Sync + 'static,
 {
     fn run(&mut self) {
         (self.f.take().unwrap())();
@@ -28,53 +29,60 @@ pub trait Scheduler {
 
 pub struct EasyScheduler {
     join_handles: Vec<JoinHandle<()>>,
-    queue: Arc<Mutex<SimpleQueue<Box<dyn Runnable>>>>,
+    sender: Arc<dyn Sender<Box<dyn Runnable>>>,
+    closer: Arc<dyn Closer<Box<dyn Runnable>>>,
 }
 
 impl EasyScheduler {
+    fn run_worker(queue: Arc<dyn Receiver<Box<dyn Runnable>>>) {
+        loop {
+            let opt_runnable = { queue.recv() };
+
+            if let Some(mut runnable) = opt_runnable {
+                runnable.run();
+            } else {
+                println!("Queue is empty {:?}", thread::current().id());
+                break;
+            }
+        }
+    }
+
     pub fn new(workers_count: usize) -> Self {
-        let queue = Arc::new(Mutex::new(SimpleQueue::<Box<dyn Runnable>>::new(
-            workers_count,
-        )));
+        let queue = Arc::new(MPMCQueue::<Box<dyn Runnable>>::new());
 
         let join_handles = (0..workers_count)
             .map(|_| {
-                let local_queue = Arc::clone(&queue);
+                let local_queue = queue.clone();
 
-                thread::spawn(move || loop {
-                    let opt_runnable = { local_queue.lock().unwrap().pop() };
-
-                    if let Some(mut runnable) = opt_runnable {
-                        runnable.run();
-                    } else {
-                        println!("Queue is empty {:?}", thread::current().id());
-                        break; // remove this fucking code
-                    }
+                thread::spawn(move || {
+                    Self::run_worker(local_queue.clone());
                 })
             })
             .collect();
 
         Self {
             join_handles,
-            queue,
+            sender: queue.clone(),
+            closer: queue.clone(),
         }
     }
 }
 
 impl Scheduler for EasyScheduler {
     fn schedule(&mut self, runnable: Box<dyn Runnable>) {
-        self.queue.lock().unwrap().push(runnable);
+        self.sender.send(runnable);
     }
 
     fn stop(&mut self) {
-        self.queue.lock().unwrap().close();
+        println!("Stopping scheduler");
+        let result = self.closer.close();
+        if let Err(_) = result {
+            println!("Scheduler already closed");
+            return;
+        }
 
         while let Some(handle) = self.join_handles.pop() {
             handle.join().unwrap();
         }
     }
 }
-
-unsafe impl Send for EasyScheduler {}
-
-unsafe impl Sync for EasyScheduler {}

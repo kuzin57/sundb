@@ -1,34 +1,24 @@
-pub use crate::sync::queue::{Queue, SimpleQueue};
+pub use std::{sync::Arc, thread};
+
+pub use crate::sync::queue::Closer;
+pub use crate::sync::queue::{MPMCQueue, Receiver, Sender};
 
 #[test]
 fn test_just_works() {
-    let mut queue: SimpleQueue<i32> = SimpleQueue::new(10);
+    let queue = Arc::new(MPMCQueue::new());
 
-    queue.push(1);
-    queue.push(2);
-    queue.push(3);
+    queue.send(1);
+    queue.send(2);
+    queue.send(3);
 
-    assert_eq!(queue.pop(), Some(1));
-    assert_eq!(queue.pop(), Some(2));
-    assert_eq!(queue.pop(), Some(3));
-    assert_eq!(queue.pop(), None);
-}
+    let result = queue.close();
+    assert!(result.is_ok());
 
-#[test]
-fn test_closed_queue() {
-    let mut queue: SimpleQueue<i32> = SimpleQueue::new(10);
+    let result_close = queue.close();
+    assert!(result_close.is_err());
 
-    queue.push(1);
-    queue.push(2);
-    queue.push(3);
-
-    queue.close();
-
-    assert_eq!(queue.pop(), Some(1));
-    assert_eq!(queue.pop(), Some(2));
-    assert_eq!(queue.pop(), Some(3));
-    assert_eq!(queue.pop(), None);
-
-    queue.push(4);
-    assert_eq!(queue.pop(), None);
+    assert_eq!(queue.recv(), Some(1));
+    assert_eq!(queue.recv(), Some(2));
+    assert_eq!(queue.recv(), Some(3));
+    assert_eq!(queue.recv(), None);
 }
