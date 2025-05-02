@@ -93,7 +93,6 @@ impl Scheduler for EasyScheduler {
             result
         } else {
             println!("something went wrong, scheduler is poisoned");
-            return;
         };
     }
 
