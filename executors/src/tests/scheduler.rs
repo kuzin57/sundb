@@ -1,26 +1,46 @@
+pub use std::sync::mpsc;
+pub use std::thread;
+
 pub use chrono::DateTime;
 
-pub use crate::scheduler::core::{EasyScheduler, Runnable, RunnableError, Scheduler};
+pub use crate::scheduler::core::SchedulerAdapter;
+pub use crate::scheduler::core::{Runnable, RunnableError, Scheduler};
+pub use crate::scheduler::easy::EasyScheduler;
+pub use crate::scheduler::easy::EasySchedulerAdapter;
 
 #[test]
 pub fn test_just_works() {
     println!("Starting test");
-    let mut scheduler = EasyScheduler::new(3);
+    let (sender, receiver) = mpsc::channel();
+
+    let join_scheduler = thread::spawn(move || {
+        let mut scheduler: Box<dyn Scheduler> = Box::new(EasyScheduler::new(3, receiver));
+        scheduler.run();
+    });
+    let mut scheduler_adapter: Box<dyn SchedulerAdapter> =
+        Box::new(EasySchedulerAdapter::new(sender));
 
     println!("Scheduler created");
 
-    scheduler.schedule(Box::new(SimpleTask { id: 1 }));
-    scheduler.schedule(Box::new(SimpleTask { id: 2 }));
-    scheduler.schedule(Box::new(SimpleTask { id: 3 }));
+    scheduler_adapter.schedule(Box::new(SimpleTask { id: 1 }));
+    scheduler_adapter.schedule(Box::new(SimpleTask { id: 2 }));
+    scheduler_adapter.schedule(Box::new(SimpleTask { id: 3 }));
 
-    scheduler.stop();
+    scheduler_adapter.stop();
+    join_scheduler.join().unwrap();
 }
 
 #[test]
 pub fn test_concurrent() {
     static BIG_VECTOR: [i32; 300000] = [1; 300000];
+    let (sender, receiver) = mpsc::channel();
 
-    let mut scheduler = EasyScheduler::new(3);
+    let join_scheduler = thread::spawn(move || {
+        let mut scheduler = EasyScheduler::new(3, receiver);
+        scheduler.run();
+    });
+    let mut scheduler_adapter: Box<dyn SchedulerAdapter> =
+        Box::new(EasySchedulerAdapter::new(sender));
 
     let first_summator = Box::new(Summator {
         id: 1,
@@ -36,13 +56,14 @@ pub fn test_concurrent() {
     });
 
     let start = chrono::Local::now();
-    scheduler.schedule(first_summator);
-    scheduler.schedule(second_summator);
-    scheduler.schedule(third_summator);
+    scheduler_adapter.schedule(first_summator);
+    scheduler_adapter.schedule(second_summator);
+    scheduler_adapter.schedule(third_summator);
     let duration = chrono::Local::now().signed_duration_since(start);
     println!("Time taken: {:?} ns", duration.num_nanoseconds().unwrap());
 
-    scheduler.stop();
+    scheduler_adapter.stop();
+    join_scheduler.join().unwrap();
 }
 
 pub struct SimpleTask {

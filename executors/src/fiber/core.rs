@@ -1,18 +1,31 @@
-use std::cell::RefCell;
+use std::{
+    cell::RefCell,
+    sync::mpsc,
+    thread::{self, JoinHandle},
+};
 
-use crate::scheduler::core::{EasyScheduler, RunnableWrapper, Scheduler};
+use crate::scheduler::core::{RunnableWrapper, Scheduler, SchedulerAdapter};
+use crate::scheduler::easy::{EasyScheduler, EasySchedulerAdapter};
 use std::rc::Rc;
 
 thread_local! {
-    static SCHEDULER: RefCell<Option<Rc<dyn Scheduler>>> = RefCell::new(None);
+    static SCHEDULER: RefCell<Option<Rc<dyn SchedulerAdapter>>> = RefCell::new(None);
 }
 
-pub fn init() {
-    let scheduler: Rc<dyn Scheduler> = Rc::new(EasyScheduler::new(3));
+pub fn init() -> JoinHandle<()> {
+    let (sender, receiver) = mpsc::channel();
+    let scheduler_adapter: Rc<dyn SchedulerAdapter> = Rc::new(EasySchedulerAdapter::new(sender));
 
     SCHEDULER.with_borrow_mut(|s| {
-        *s = Some(Rc::clone(&scheduler));
+        *s = Some(Rc::clone(&scheduler_adapter));
     });
+
+    let join_scheduler = thread::spawn(move || {
+        let mut scheduler: Box<dyn Scheduler> = Box::new(EasyScheduler::new(3, receiver));
+        scheduler.run();
+    });
+
+    join_scheduler
 }
 
 pub fn go<F>(f: F)

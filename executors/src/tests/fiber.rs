@@ -7,7 +7,7 @@ pub use crate::fiber::core::{go, init, stop};
 
 #[test]
 pub fn test_just_works() {
-    init();
+    let join_handle = init();
 
     let start = Instant::now();
 
@@ -27,6 +27,7 @@ pub fn test_just_works() {
     });
 
     stop();
+    join_handle.join().unwrap();
 
     let duration = start.elapsed();
     println!("Duration: {:?}", duration);
