@@ -20,12 +20,10 @@ pub fn init() -> JoinHandle<()> {
         *s = Some(Rc::clone(&scheduler_adapter));
     });
 
-    let join_scheduler = thread::spawn(move || {
+    thread::spawn(move || {
         let mut scheduler: Box<dyn Scheduler> = Box::new(EasyScheduler::new(3, receiver));
         scheduler.run();
-    });
-
-    join_scheduler
+    })
 }
 
 pub fn go<F>(f: F)
