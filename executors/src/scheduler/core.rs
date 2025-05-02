@@ -1,10 +1,22 @@
+use std::fmt;
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
 use crate::sync::queue::{Closer, MPMCQueue, Receiver, Sender};
 
 pub trait Runnable: Send + Sync {
-    fn run(&mut self);
+    fn run(&mut self) -> Result<(), RunnableError>;
+}
+
+pub struct RunnableError {
+    pub message: String,
+}
+
+impl Debug for RunnableError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "RunnableError: {}", self.message)
+    }
 }
 
 pub struct RunnableWrapper<F>
@@ -18,8 +30,12 @@ impl<F> Runnable for RunnableWrapper<F>
 where
     F: FnOnce() + Send + Sync + 'static,
 {
-    fn run(&mut self) {
-        (self.f.take().unwrap())();
+    fn run(&mut self) -> Result<(), RunnableError> {
+        self.f.take().ok_or(RunnableError {
+            message: "RunnableWrapper is already run".to_string(),
+        })?();
+
+        Ok(())
     }
 }
 pub trait Scheduler {
@@ -39,7 +55,10 @@ impl EasyScheduler {
             let opt_runnable = { queue.recv() };
 
             if let Some(mut runnable) = opt_runnable {
-                runnable.run();
+                let result = runnable.run();
+                if result.is_err() {
+                    println!("some shit happened: {:?}", result.err().unwrap());
+                }
             } else {
                 println!("Queue is empty {:?}", thread::current().id());
                 break;
@@ -70,19 +89,31 @@ impl EasyScheduler {
 
 impl Scheduler for EasyScheduler {
     fn schedule(&mut self, runnable: Box<dyn Runnable>) {
-        self.sender.send(runnable);
+        let _unused = if let Ok(result) = self.sender.send(runnable) {
+            result
+        } else {
+            println!("something went wrong, scheduler is poisoned");
+            return;
+        };
     }
 
     fn stop(&mut self) {
         println!("Stopping scheduler");
-        let result = self.closer.close();
-        if result.is_err() {
+        let _unused = if let Ok(result) = self.closer.close() {
+            result
+        } else {
             println!("Scheduler already closed");
             return;
-        }
+        };
 
         while let Some(handle) = self.join_handles.pop() {
-            handle.join().unwrap();
+            if let Err(e) = handle.join() {
+                println!("panic handeled in worker: {:?}", e);
+                continue;
+            } else {
+                println!("worker finished");
+                continue;
+            };
         }
     }
 }

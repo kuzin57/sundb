@@ -11,7 +11,8 @@ fn test_just_works() {
     let future = BlockingFuture::new(Arc::clone(&state));
     let mut promise = SimplePromise::new(Arc::clone(&state));
 
-    promise.produce(1);
+    let result = promise.produce(1);
+    assert!(result.is_ok());
 
     assert_eq!(future.consume(), Some(1));
 }
@@ -23,7 +24,8 @@ fn test_concurrent() {
     let mut promise = SimplePromise::new(Arc::clone(&state));
 
     let handle = thread::spawn(move || {
-        promise.produce(1);
+        let result = promise.produce(1);
+        assert!(result.is_ok());
     });
 
     handle.join().unwrap();
@@ -41,6 +43,8 @@ fn test_concurrent_future() {
         assert_eq!(future.consume(), Some(1));
     });
 
-    promise.produce(1);
+    let result = promise.produce(1);
+    assert!(result.is_ok());
+
     handle.join().unwrap();
 }

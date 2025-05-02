@@ -2,12 +2,12 @@ use std::{
     collections::VecDeque,
     sync::{
         atomic::{AtomicBool, AtomicI32, Ordering},
-        Arc, Condvar, Mutex,
+        Arc, Condvar, Mutex, MutexGuard, PoisonError,
     },
 };
 
 pub trait Sender<T> {
-    fn send(&self, item: T);
+    fn send(&self, item: T) -> Result<(), PoisonError<MutexGuard<VecDeque<T>>>>;
 }
 
 pub trait Closer<T> {
@@ -43,25 +43,32 @@ impl<T: Send + Sync> Default for MPMCQueue<T> {
 }
 
 impl<T: Send + Sync> Sender<T> for MPMCQueue<T> {
-    fn send(&self, item: T) {
+    fn send(&self, item: T) -> Result<(), PoisonError<MutexGuard<VecDeque<T>>>> {
         if self.closed.load(Ordering::Acquire) {
-            return;
+            return Ok(());
         }
 
-        let mut buffer = self.buffer.lock().unwrap();
+        let mut buffer = self.buffer.lock()?;
         buffer.push_back(item);
 
         if self.waiters.load(Ordering::Relaxed) > 0 {
             self.waiters.store(0, Ordering::Relaxed);
             self.cond.notify_all();
         }
+
+        Ok(())
     }
 }
 
 impl<T: Send + Sync> Receiver<T> for MPMCQueue<T> {
     fn recv(&self) -> Option<T> {
         loop {
-            let mut buffer = self.buffer.lock().unwrap();
+            let mut buffer = if let Ok(buffer) = self.buffer.lock() {
+                buffer
+            } else {
+                return None;
+            };
+
             if let Some(item) = buffer.pop_front() {
                 return Some(item);
             }
@@ -71,7 +78,10 @@ impl<T: Send + Sync> Receiver<T> for MPMCQueue<T> {
             }
 
             self.waiters.fetch_add(1, Ordering::Relaxed);
-            let _unused = self.cond.wait(buffer).unwrap();
+            let wait_result = self.cond.wait(buffer);
+            if wait_result.is_err() {
+                return None;
+            }
         }
     }
 }

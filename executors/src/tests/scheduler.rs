@@ -1,6 +1,6 @@
 pub use chrono::DateTime;
 
-pub use crate::scheduler::core::{EasyScheduler, Runnable, Scheduler};
+pub use crate::scheduler::core::{EasyScheduler, Runnable, RunnableError, Scheduler};
 
 #[test]
 pub fn test_just_works() {
@@ -50,8 +50,9 @@ pub struct SimpleTask {
 }
 
 impl Runnable for SimpleTask {
-    fn run(&mut self) {
+    fn run(&mut self) -> Result<(), RunnableError> {
         println!("SimpleTask {} is running", self.id);
+        Ok(())
     }
 }
 
@@ -61,11 +62,12 @@ pub struct Summator<'a> {
 }
 
 impl Runnable for Summator<'_> {
-    fn run(&mut self) {
+    fn run(&mut self) -> Result<(), RunnableError> {
         let mut sum = 0;
         for i in self.slice {
             sum += i;
         }
         println!("Summator {} is done, sum is {}", self.id, sum);
+        Ok(())
     }
 }

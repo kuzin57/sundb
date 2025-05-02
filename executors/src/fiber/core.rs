@@ -20,17 +20,37 @@ where
     F: FnOnce() + Send + Sync + 'static,
 {
     SCHEDULER.with_borrow_mut(|s| {
-        let scheduler = s.as_mut().unwrap();
+        let scheduler = if let Some(scheduler) = s.as_mut() {
+            scheduler
+        } else {
+            println!("can not schedule fiber, scheduler is not initialized");
+            return;
+        };
 
-        Rc::get_mut(scheduler)
-            .unwrap()
-            .schedule(Box::new(RunnableWrapper { f: Some(f) }));
+        let scheduler = if let Some(scheduler) = Rc::get_mut(scheduler) {
+            scheduler
+        } else {
+            println!("can not schedule fiber, scheduler is not initialized");
+            return;
+        };
+
+        scheduler.schedule(Box::new(RunnableWrapper { f: Some(f) }));
     });
 }
 
 pub fn stop() {
     SCHEDULER.with_borrow_mut(|s| {
-        let scheduler = s.as_mut().unwrap();
-        Rc::get_mut(scheduler).unwrap().stop();
+        let scheduler = if let Some(scheduler) = s.as_mut() {
+            scheduler
+        } else {
+            println!("can not stop scheduler, it is not initialized");
+            return;
+        };
+
+        if let Some(scheduler) = Rc::get_mut(scheduler) {
+            scheduler.stop();
+        } else {
+            println!("can not stop scheduler, it is not initialized");
+        }
     });
 }

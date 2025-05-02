@@ -7,9 +7,9 @@ pub use crate::sync::queue::{MPMCQueue, Receiver, Sender};
 fn test_just_works() {
     let queue = Arc::new(MPMCQueue::new());
 
-    queue.send(1);
-    queue.send(2);
-    queue.send(3);
+    queue.send(1).unwrap();
+    queue.send(2).unwrap();
+    queue.send(3).unwrap();
 
     let result = queue.close();
     assert!(result.is_ok());
