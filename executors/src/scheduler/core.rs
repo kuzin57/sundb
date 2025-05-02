@@ -89,7 +89,7 @@ impl EasyScheduler {
 
 impl Scheduler for EasyScheduler {
     fn schedule(&mut self, runnable: Box<dyn Runnable>) {
-        let _unused = if let Ok(result) = self.sender.send(runnable) {
+        if let Ok(result) = self.sender.send(runnable) {
             result
         } else {
             println!("something went wrong, scheduler is poisoned");
@@ -99,7 +99,7 @@ impl Scheduler for EasyScheduler {
 
     fn stop(&mut self) {
         println!("Stopping scheduler");
-        let _unused = if let Ok(result) = self.closer.close() {
+        if let Ok(result) = self.closer.close() {
             result
         } else {
             println!("Scheduler already closed");
