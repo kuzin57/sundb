@@ -1,11 +1,12 @@
-use std::sync::{Arc, Condvar, Mutex, MutexGuard, PoisonError};
+use anyhow::Result;
+use std::sync::{Arc, Condvar, Mutex};
 
 pub trait Future<T> {
     fn consume(&self) -> Option<T>;
 }
 
 pub trait Promise<T> {
-    fn produce(&mut self, value: T) -> Result<(), PoisonError<MutexGuard<SharedState<T>>>>;
+    fn produce(&mut self, value: T) -> Result<()>;
 }
 
 pub struct SharedState<T> {
@@ -51,27 +52,29 @@ impl<T> SimplePromise<T> {
 
 impl<T: Clone> Future<T> for BlockingFuture<T> {
     fn consume(&self) -> Option<T> {
-        let mut state = if let Ok(state) = self.state.lock() {
-            state
-        } else {
-            return None;
-        };
+        match self.state.lock() {
+            Ok(mut state) => {
+                while !state.ready {
+                    state = if let Ok(state) = state.wait_cond.clone().wait(state) {
+                        state
+                    } else {
+                        return None;
+                    };
+                }
 
-        while !state.ready {
-            state = if let Ok(state) = state.wait_cond.clone().wait(state) {
-                state
-            } else {
-                return None;
-            };
+                state.value.clone()
+            }
+            Err(_) => None,
         }
-
-        state.value.clone()
     }
 }
 
 impl<T> Promise<T> for SimplePromise<T> {
-    fn produce(&mut self, value: T) -> Result<(), PoisonError<MutexGuard<SharedState<T>>>> {
-        let mut state = self.state.lock()?;
+    fn produce(&mut self, value: T) -> Result<()> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|e| anyhow::anyhow!("Poisoned mutex: {:?}", e))?;
         state.value = Some(value);
         state.ready = true;
         state.wait_cond.notify_all();

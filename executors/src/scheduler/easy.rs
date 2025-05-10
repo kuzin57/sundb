@@ -130,14 +130,15 @@ impl EasyScheduler {
 impl Scheduler for EasyScheduler {
     fn run(&mut self) {
         while let Ok(runnable) = self.receiver.recv() {
-            if let Some(runnable) = runnable {
-                if let Some(mut worker_adapter) = self.workers_adapters.peek_mut() {
-                    worker_adapter.0.send(runnable);
-                } else {
-                    println!("No workers available");
-                    break;
-                }
+            if runnable.is_none() {
+                break;
+            }
+
+            let runnable = runnable.unwrap();
+            if let Some(mut worker_adapter) = self.workers_adapters.peek_mut() {
+                worker_adapter.0.send(runnable);
             } else {
+                println!("No workers available");
                 break;
             }
         }
@@ -147,13 +148,14 @@ impl Scheduler for EasyScheduler {
         }
 
         while let Some(handle) = self.join_handles.pop() {
-            if let Err(e) = handle.join() {
-                println!("panic handeled in worker: {:?}", e);
-                continue;
-            } else {
-                println!("worker finished");
-                continue;
-            };
+            match handle.join() {
+                Ok(_) => {
+                    println!("worker finished");
+                }
+                Err(e) => {
+                    println!("panic handeled in worker: {:?}", e);
+                }
+            }
         }
     }
 }
