@@ -26,7 +26,7 @@ pub fn init() -> JoinHandle<()> {
     })
 }
 
-pub fn go<F>(f: F)
+pub fn spawn<F>(f: F)
 where
     F: FnOnce() + Send + Sync + 'static,
 {

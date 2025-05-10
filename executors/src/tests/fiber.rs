@@ -3,7 +3,7 @@ pub use std::{
     time::{Duration, Instant},
 };
 
-pub use crate::fiber::core::{go, init, stop};
+pub use crate::fiber::core::{init, spawn, stop};
 
 #[test]
 pub fn test_just_works() {
@@ -11,17 +11,17 @@ pub fn test_just_works() {
 
     let start = Instant::now();
 
-    go(|| {
+    spawn(|| {
         sleep(Duration::from_secs(1));
         println!("Hello, world {:?}", thread::current().id());
     });
 
-    go(|| {
+    spawn(|| {
         sleep(Duration::from_secs(1));
         println!("Hello, world {:?}", thread::current().id());
     });
 
-    go(|| {
+    spawn(|| {
         sleep(Duration::from_secs(1));
         println!("Hello, world {:?}", thread::current().id());
     });
